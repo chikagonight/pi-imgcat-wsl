@@ -44,7 +44,7 @@ import {
 	type Component,
 } from "@earendil-works/pi-tui";
 import { type Static, Type } from "typebox";
-import { isWindowsOrWSL, powerShellBinary } from "./platform.ts";
+import { escapePowerShellSingleQuoted, isWindowsOrWSL, powerShellBinary } from "./platform.ts";
 
 function supportsWindowsRendering(): boolean {
 	return isWindowsOrWSL(process.platform, process.env, () => fs.readFileSync("/proc/version", "utf8"));
@@ -206,10 +206,6 @@ class RawLinesComponent implements Component {
 	render(_width: number): string[] {
 		return this.lines;
 	}
-}
-
-function escapePowerShellSingleQuoted(s: string): string {
-	return s.replace(/'/g, "''");
 }
 
 function runPowerShell(script: string): Promise<string> {

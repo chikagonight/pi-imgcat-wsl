@@ -43,6 +43,6 @@ Over SSH from iTerm2, run `$env:PI_IMAGE_PROTOCOL='iterm2'` before `pi` (iTerm d
 
 ## WSL2
 
-When pi runs inside WSL2, image conversion invokes Windows `powershell.exe` via WSL interop. Install the `Sixel` PowerShell module on the Windows side (`Install-Module Sixel -Scope CurrentUser -Force`) and ensure `powershell.exe` is accessible from WSL. Local WSL image paths are translated with `wslpath` for Windows PowerShell. If interop or the module is unavailable, rendering falls back to a text label.
+When pi runs inside WSL2, image conversion invokes Windows `powershell.exe` via WSL interop. For Sixel rendering, install the `Sixel` PowerShell module on the Windows side (`Install-Module Sixel -Scope CurrentUser -Force`) and ensure `powershell.exe` is accessible from WSL. Local WSL image paths are translated with `wslpath` for Windows PowerShell. If Sixel is unavailable, rendering falls back to ANSI blocks (which do not require the `Sixel` module), then to a text label if block conversion also fails. Both image conversion levels require working PowerShell interop.
 
 No npm dependencies. Sixel helpers adapted from [pi-image-tools](https://github.com/MasuRii/pi-image-tools) (MIT). License: MIT.
