@@ -41,4 +41,8 @@ The `show_image` tool is also available to the LLM (with an `open: true` flag fo
 
 Over SSH from iTerm2, run `$env:PI_IMAGE_PROTOCOL='iterm2'` before `pi` (iTerm doesn't forward its session id).
 
+## WSL2
+
+When pi runs inside WSL2, image conversion invokes Windows `powershell.exe` via WSL interop. Install the `Sixel` PowerShell module on the Windows side (`Install-Module Sixel -Scope CurrentUser -Force`) and ensure `powershell.exe` is accessible from WSL. Local WSL image paths are translated with `wslpath` for Windows PowerShell. If interop or the module is unavailable, rendering falls back to a text label.
+
 No npm dependencies. Sixel helpers adapted from [pi-image-tools](https://github.com/MasuRii/pi-image-tools) (MIT). License: MIT.

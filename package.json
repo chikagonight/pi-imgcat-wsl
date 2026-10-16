@@ -18,6 +18,9 @@
 		"type": "git",
 		"url": "git+https://github.com/GelArria/pi-imgcat.git"
 	},
+	"scripts": {
+		"test": "node --test --experimental-strip-types platform.test.ts"
+	},
 	"pi": {
 		"extensions": [
 			"./index.ts"
@@ -25,6 +28,7 @@
 	},
 	"files": [
 		"index.ts",
+		"platform.ts",
 		"README.md",
 		"LICENSE",
 		"media"

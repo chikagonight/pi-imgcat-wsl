@@ -16,7 +16,7 @@
  * Sixel helpers adapted from pi-image-tools 1.4.0 (MIT, MasuRii).
  */
 
-import { spawn } from "node:child_process";
+import { spawn, spawnSync } from "node:child_process";
 import * as fs from "node:fs";
 import { homedir, tmpdir } from "node:os";
 import * as path from "node:path";
@@ -44,6 +44,20 @@ import {
 	type Component,
 } from "@earendil-works/pi-tui";
 import { type Static, Type } from "typebox";
+import { isWindowsOrWSL, powerShellBinary } from "./platform.ts";
+
+function supportsWindowsRendering(): boolean {
+	return isWindowsOrWSL(process.platform, process.env, () => fs.readFileSync("/proc/version", "utf8"));
+}
+
+function windowsPath(filePath: string): string {
+	if (process.platform === "win32") return filePath;
+	const result = spawnSync("wslpath", ["-w", filePath], { encoding: "utf8" });
+	if (result.error || result.status !== 0 || !result.stdout.trim()) {
+		throw new Error("Cannot convert WSL path for Windows PowerShell");
+	}
+	return result.stdout.trim();
+}
 
 // ─────────────────────────────────────────────────────────────────────────
 // Constants
@@ -201,7 +215,7 @@ function escapePowerShellSingleQuoted(s: string): string {
 function runPowerShell(script: string): Promise<string> {
 	return new Promise((resolve) => {
 		const encoded = Buffer.from(script, "utf16le").toString("base64");
-		const child = spawn("powershell", ["-NoProfile", "-EncodedCommand", encoded], { windowsHide: true });
+		const child = spawn(powerShellBinary(process.platform), ["-NoProfile", "-EncodedCommand", encoded], { windowsHide: true });
 		let stdout = "";
 		let settled = false;
 		const finish = (out: string) => {
@@ -250,8 +264,8 @@ $ErrorActionPreference = 'Stop'
 $ProgressPreference = 'SilentlyContinue'
 Add-Type -AssemblyName System.Drawing
 
-$src = '${escapePowerShellSingleQuoted(srcPath)}'
-$out = '${escapePowerShellSingleQuoted(bmpPath)}'
+$src = '${escapePowerShellSingleQuoted(windowsPath(srcPath))}'
+$out = '${escapePowerShellSingleQuoted(windowsPath(bmpPath))}'
 $cols = ${pixelW}; $prows = ${pixelH}
 
 $source = [System.Drawing.Image]::FromFile($src)
@@ -304,8 +318,8 @@ Write-Output $rendered
 }
 
 function openInViewer(resolved: ResolvedImage): string | undefined {
-	// ponytail: explorer.exe = OS default viewer, Windows only; on macOS/Linux add `open`/`xdg-open` if ever needed
-	if (process.platform !== "win32") return undefined;
+	// explorer.exe opens the Windows default viewer on Windows and via WSL interop.
+	if (!supportsWindowsRendering()) return undefined;
 	try {
 		let p: string;
 		if (resolved.label === "data:uri" || /^https?:\/\//i.test(resolved.label)) {
@@ -314,7 +328,9 @@ function openInViewer(resolved: ResolvedImage): string | undefined {
 		} else {
 			p = resolved.label;
 		}
-		spawn("explorer", [p], { detached: true, stdio: "ignore" }).unref();
+		const viewer = spawn(process.platform === "win32" ? "explorer" : "explorer.exe", [windowsPath(p)], { detached: true, stdio: "ignore" });
+		viewer.on("error", () => { /* WSL interop may be disabled. */ });
+		viewer.unref();
 		return p;
 	} catch {
 		return undefined;
@@ -355,8 +371,8 @@ function parseBmpToBlockArt(buf: Buffer): string[] | undefined {
 }
 
 async function convertToBlockArt(bytes: Buffer, mimeType: string, dataBase64: string): Promise<string[] | undefined> {
-	// ponytail: System.Drawing is Windows-only; on Linux with no protocol, label remains
-	if (process.platform !== "win32") return undefined;
+	// System.Drawing runs in Windows PowerShell, including via WSL interop.
+	if (!supportsWindowsRendering()) return undefined;
 	const dims = getImageDimensions(dataBase64, mimeType);
 	if (!dims || dims.widthPx <= 0 || dims.heightPx <= 0) return undefined;
 // cells ~1:2 (real cell size once pi has probed the terminal) → cols from live terminal width
@@ -380,8 +396,8 @@ $ErrorActionPreference = 'Stop'
 $ProgressPreference = 'SilentlyContinue'
 Add-Type -AssemblyName System.Drawing
 
-$src = '${escapePowerShellSingleQuoted(srcPath)}'
-$out = '${escapePowerShellSingleQuoted(bmpPath)}'
+$src = '${escapePowerShellSingleQuoted(windowsPath(srcPath))}'
+$out = '${escapePowerShellSingleQuoted(windowsPath(bmpPath))}'
 $cols = ${cols}; $prows = ${pixelRows}
 
 $source = [System.Drawing.Image]::FromFile($src)
@@ -462,7 +478,7 @@ async function maybeSixel(resolved: ResolvedImage, data: string): Promise<{ sequ
 	// ponytail: on native Windows ConPTY strips kitty/iterm2 image payloads (empirically
 	// verified: raw DCS/sixel survives, kitty APC does not) — so SIXEL is the only live
 	// pixel protocol here and is preferred over native caps in every Windows context.
-	if (process.platform !== "win32") return undefined;
+	if (!supportsWindowsRendering()) return undefined;
 	const dims = getImageDimensions(data, resolved.mimeType);
 	if (!dims || dims.widthPx <= 0 || dims.heightPx <= 0) return undefined;
 	const t = sixelTarget(dims);
