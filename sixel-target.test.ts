@@ -33,20 +33,28 @@ test("small images are not enlarged", () => {
 test("portrait is height-limited without distortion or upscaling", () => {
 	const portrait = { widthPx: 1000, heightPx: 4000 };
 	const target = sixelTarget(portrait, cell, 120);
-	assert.ok(target.pixelH <= 80 * cell.heightPx);
+	assert.equal(target.pixelH, 110 * cell.heightPx);
 	assert.ok(target.pixelW <= portrait.widthPx);
 	assertAspectRatio(target, portrait);
-	assert.equal(target.rows, 80);
+	assert.equal(target.rows, 110);
 });
 
-test("wide terminals can render beyond the old 120-column quality ceiling without unbounded output", () => {
+test("wide terminals improve photo detail beyond the old ceiling without unbounded output", () => {
+	const target = sixelTarget(photo, cell, 240);
+	assert.equal(target.pixelW, 220 * cell.widthPx);
+	assert.ok(target.pixelW > 1440);
+	assert.ok(target.pixelH <= 110 * cell.heightPx);
+	assert.ok(target.pixelW <= 2200 && target.pixelH <= 2200);
+	assertAspectRatio(target, photo);
+	assert.equal(target.rows, Math.ceil(target.pixelH / cell.heightPx));
+
 	const wide = sixelTarget({ widthPx: 4000, heightPx: 2000 }, cell, 240);
-	assert.ok(wide.pixelW > 120 * cell.widthPx);
-	assert.ok(wide.pixelW <= 160 * cell.widthPx);
-	assert.ok(wide.pixelH <= 80 * cell.heightPx);
+	assert.equal(wide.pixelW, 220 * cell.widthPx);
+	assert.ok(wide.pixelH <= 110 * cell.heightPx);
 	assertAspectRatio(wide, { widthPx: 4000, heightPx: 2000 });
+
 	const highDpi = sixelTarget({ widthPx: 8000, heightPx: 6000 }, { widthPx: 24, heightPx: 48 }, 240);
-	assert.ok(highDpi.pixelW <= 1600);
-	assert.ok(highDpi.pixelH <= 1600);
+	assert.equal(highDpi.pixelW, 2200);
+	assert.ok(highDpi.pixelH <= 2200);
 	assertAspectRatio(highDpi, { widthPx: 8000, heightPx: 6000 });
 });
