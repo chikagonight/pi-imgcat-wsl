@@ -19,7 +19,7 @@
 		"url": "git+https://github.com/GelArria/pi-imgcat.git"
 	},
 	"scripts": {
-		"test": "node --test --experimental-strip-types platform.test.ts"
+		"test": "node --test --experimental-strip-types platform.test.ts sixel-target.test.ts"
 	},
 	"pi": {
 		"extensions": [
@@ -29,6 +29,7 @@
 	"files": [
 		"index.ts",
 		"platform.ts",
+		"sixel-target.ts",
 		"README.md",
 		"LICENSE",
 		"media"

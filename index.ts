@@ -45,6 +45,7 @@ import {
 } from "@earendil-works/pi-tui";
 import { type Static, Type } from "typebox";
 import { escapePowerShellSingleQuoted, isWindowsOrWSL, powerShellBinary } from "./platform.ts";
+import { MAX_SIXEL_ROWS, sixelTarget as calculateSixelTarget } from "./sixel-target.ts";
 
 function supportsWindowsRendering(): boolean {
 	return isWindowsOrWSL(process.platform, process.env, () => fs.readFileSync("/proc/version", "utf8"));
@@ -69,7 +70,6 @@ const PS_TIMEOUT_MS = 120_000;
 const PS_MAX_BUFFER = 128 * 1024 * 1024;
 const MAX_WIDTH_CELLS = 60; // default of terminal.imageWidthCells
 const MAX_ART_COLS = 120;
-const MAX_SIXEL_ROWS = 80;
 
 const SUPPORTED_MIMES = new Set(["image/png", "image/jpeg", "image/gif", "image/webp", "image/bmp"]);
 const MIME_EXT: Record<string, string> = {
@@ -233,19 +233,7 @@ function runPowerShell(script: string): Promise<string> {
 }
 
 function sixelTarget(dims: { widthPx: number; heightPx: number }): { pixelW: number; pixelH: number; rows: number } {
-	// pixels ≈ cells: resize big images DOWN so the render always fits the chat pane
-	const cell = getCellDimensions();
-	const cols = Math.max(40, Math.min(MAX_ART_COLS, (process.stdout.columns ?? 80) - 6));
-	let pixelW = Math.min(dims.widthPx, cols * Math.max(1, cell.widthPx));
-	let pixelH = Math.round((pixelW * dims.heightPx) / dims.widthPx);
-	const maxPixelH = MAX_SIXEL_ROWS * cell.heightPx;
-	if (pixelH > maxPixelH) {
-		pixelH = maxPixelH;
-		pixelW = Math.round((pixelH * dims.widthPx) / dims.heightPx);
-	}
-	pixelH = Math.max(2, pixelH);
-	pixelW = Math.max(1, pixelW);
-	return { pixelW, pixelH, rows: Math.max(1, Math.min(Math.ceil(pixelH / cell.heightPx), MAX_SIXEL_ROWS)) };
+	return calculateSixelTarget(dims, getCellDimensions(), process.stdout.columns ?? 80);
 }
 
 async function convertToSixel(bytes: Buffer, mimeType: string, pixelW: number, pixelH: number): Promise<string | undefined> {
